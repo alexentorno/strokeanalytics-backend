@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: strokeanalytics-backend
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/strokeanalytics
+    username: strokeanalytics
+    password: strokeanalytics
+
+  jpa:
+    hibernate:
+      # 'update' is convenient during early development.
+      # Switch to 'validate' and manage schema changes with Flyway once the schema stabilizes.
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  servlet:
+    multipart:
+      # A raw .fit file with dense per-second sensor data rarely exceeds a few MB.
+      max-file-size: 20MB
+      max-request-size: 20MB
+
+server:
+  port: 8080
