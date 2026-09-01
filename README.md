@@ -42,8 +42,8 @@ The API starts on `http://localhost:8080`.
 |--------|---------------------------------------------|--------------------------------------------------|
 | POST   | `/api/activities/import`                    | Upload a `.fit` file (multipart field `file`)     |
 | GET    | `/api/activities`                            | List imported activities                          |
-| GET    | `/api/activities/{id}/data-points`           | Full time-series for one activity                 |
-| GET    | `/api/activities/{id}/stats?from=...&to=...` | Avg/max speed & heart rate, distance, elapsed time for a selected segment (`from`/`to` as ISO-8601 instants, e.g. `2026-08-20T07:00:00Z`) |
+| GET    | `/api/activities/{id}/data-points?maxPoints=N` | Time-series for one activity, downsampled to at most `N` points via LTTB (default 2000; pass `maxPoints=0` for full resolution) |
+| GET    | `/api/activities/{id}/stats?from=...&to=...` | Avg/max speed & heart rate, distance, elapsed time for a selected segment — always computed from full-resolution data, independent of the downsampling above (`from`/`to` as ISO-8601 instants, e.g. `2026-08-20T07:00:00Z`) |
 
 Example upload (Linux/macOS):
 
@@ -82,7 +82,7 @@ Garmin Connect → an activity → **⋯** menu → **Export Original**.
 ```
 src/main/java/com/strokeanalytics/backend/
 ├── activity/     # Activity entity, repository, import service, REST controller
-├── datapoint/    # DataPoint entity, repository, response DTO
+├── datapoint/    # DataPoint entity, repository, response DTO, LTTB downsampler
 └── fit/          # Format-specific .fit decoding (Garmin FIT SDK), isolated
                   # behind the FitFileParser interface so it stays swappable
                   # and unit-testable without a real .fit file
@@ -92,8 +92,5 @@ src/main/java/com/strokeanalytics/backend/
 
 1. Add unit tests for `GarminFitFileParser` and `ActivityStatsService` using
    a small sample `.fit` file committed to `src/test/resources`.
-2. Build the Next.js frontend: a single synchronized chart (uPlot or D3)
-   with toggleable series (speed / heart rate / distance) and a brush-zoom
-   that calls `/stats` on selection.
-3. Switch `hibernate.ddl-auto` to `validate` and introduce Flyway migrations
+2. Switch `hibernate.ddl-auto` to `validate` and introduce Flyway migrations
    once the schema stabilizes.

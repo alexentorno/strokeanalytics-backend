@@ -12,7 +12,7 @@ import java.io.InputStream;
  * Orchestrates the import of a .fit file: parsing it, converting the result
  * into persistent entities, and saving the whole activity in one call.
  * <p>
- * Kept separate from {@link com.strokeanalytics.backend.fit.FitFileParser}
+ * Kept separate from {@link FitFileParser}
  * on purpose: parsing has no knowledge of JPA entities, and this class has
  * no knowledge of the .fit binary format.
  */

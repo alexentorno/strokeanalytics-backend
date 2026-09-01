@@ -1,5 +1,7 @@
 package com.strokeanalytics.backend.activity;
 
+import com.strokeanalytics.backend.datapoint.DataPoint;
+import com.strokeanalytics.backend.datapoint.DataPointDownsampler;
 import com.strokeanalytics.backend.datapoint.DataPointRepository;
 import com.strokeanalytics.backend.datapoint.DataPointResponse;
 import org.springframework.http.HttpStatus;
@@ -24,16 +26,28 @@ import java.util.List;
 @RequestMapping("/api/activities")
 public class ActivityController {
 
+    /**
+     * Default cap on points returned by /data-points when the caller doesn't
+     * specify one. Chosen as a point past which a browser chart stops
+     * feeling smooth to drag/zoom, not for any data-accuracy reason — the
+     * /stats endpoint always computes from full-resolution stored data,
+     * independent of this.
+     */
+    private static final int DEFAULT_MAX_CHART_POINTS = 2000;
+
     private final ActivityImportService activityImportService;
     private final ActivityRepository activityRepository;
     private final DataPointRepository dataPointRepository;
+    private final DataPointDownsampler dataPointDownsampler;
 
     public ActivityController(ActivityImportService activityImportService,
                                ActivityRepository activityRepository,
-                               DataPointRepository dataPointRepository) {
+                               DataPointRepository dataPointRepository,
+                               DataPointDownsampler dataPointDownsampler) {
         this.activityImportService = activityImportService;
         this.activityRepository = activityRepository;
         this.dataPointRepository = dataPointRepository;
+        this.dataPointDownsampler = dataPointDownsampler;
     }
 
     /** Uploads and imports a single Garmin .fit file. */
@@ -59,10 +73,25 @@ public class ActivityController {
                 .toList();
     }
 
-    /** Returns the full time-series for one activity, used to render its chart. */
+    /**
+     * Returns the time-series for one activity, used to render its chart.
+     * <p>
+     * Downsampled to at most {@code maxPoints} using LTTB when the activity
+     * has more raw samples than that, so long sessions stay smooth to
+     * render, drag and zoom in the browser. Pass {@code maxPoints=0} (or any
+     * value ≥ the raw sample count) to get full-resolution data instead.
+     */
     @GetMapping("/{activityId}/data-points")
-    public List<DataPointResponse> getDataPoints(@PathVariable Long activityId) {
-        return dataPointRepository.findByActivityIdOrderByTimestampAsc(activityId).stream()
+    public List<DataPointResponse> getDataPoints(
+            @PathVariable Long activityId,
+            @RequestParam(defaultValue = "" + DEFAULT_MAX_CHART_POINTS) int maxPoints) {
+
+        List<DataPoint> dataPoints = dataPointRepository.findByActivityIdOrderByTimestampAsc(activityId);
+        List<DataPoint> pointsToReturn = maxPoints > 0
+                ? dataPointDownsampler.downsample(dataPoints, maxPoints)
+                : dataPoints;
+
+        return pointsToReturn.stream()
                 .map(DataPointResponse::from)
                 .toList();
     }
